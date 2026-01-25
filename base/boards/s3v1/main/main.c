@@ -61,12 +61,44 @@ static void fc_init(void) {
   ESP_ERROR_CHECK(uart_set_pin(UART_NUM_1, 43, 44, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
 }
 
+static void send_rc_packet(rc_t *rc) {
+  uint8_t packet[32];
+  packet[0] = 'd';
+  packet[1] = 'b';
+  packet[2] = 0x02; // RC_CMD_ID
+  packet[3] = 0x00; // RC_SUB_CMD_MOVE
+  
+  uint16_t payload_len = 18; // 4*4 + 2
+  memcpy(&packet[4], &payload_len, 2);
+  
+  // Payload starts at packet[6]
+  memcpy(&packet[6], &rc->roll, 4);
+  memcpy(&packet[10], &rc->pitch, 4);
+  memcpy(&packet[14], &rc->yaw, 4);
+  memcpy(&packet[18], &rc->throttle, 4); // Maps to 'alt' in FC
+  
+  uint8_t state = (uint8_t)rc->on;
+  uint8_t mode = (uint8_t)rc->mode;
+  packet[22] = state;
+  packet[23] = mode;
+  
+  // Checksum: ID(2) + ID(3) + LenL(4) + LenH(5) + Payload(6..23)
+  uint16_t checksum = 0;
+  for(int i=2; i<24; i++) {
+    checksum += packet[i];
+  }
+  memcpy(&packet[24], &checksum, 2);
+  
+  uart_write_bytes(UART_NUM_1, (const char*)packet, 26);
+}
+
 static void rc_timer(void *param) {
   rc_get(&g_rc);
+  send_rc_packet(&g_rc);
 }
 
 static void handle_db_msg(uart_rx_t *msg) {
-  if (msg->header[0] == 'b' && msg->header[1] == 'd') { // DB message
+  if (msg->header[0] == 'd' && msg->header[1] == 'b') { // DB message
     if (msg->buffer[0] == 0x00 && msg->buffer[1] == 0x00) { // Euler Angle
       g_roll = *(int*)&msg->buffer[4];
       g_pitch = *(int*)&msg->buffer[8];
@@ -225,13 +257,13 @@ void core1() {
       }
     }
     else if (g_uart_rx1.stage == 0) {
-      if (g_uart_rx1.byte == 'b') {
+      if (g_uart_rx1.byte == 'd') {
         g_uart_rx1.header[0] = g_uart_rx1.byte;
         g_uart_rx1.stage = 1;
       }
     }
     else if (g_uart_rx1.stage == 1) {
-      if (g_uart_rx1.byte == 'd') {
+      if (g_uart_rx1.byte == 'b') {
         g_uart_rx1.header[1] = g_uart_rx1.byte;
         g_uart_rx1.buffer_idx = 0;
         g_uart_rx1.stage = 2;
