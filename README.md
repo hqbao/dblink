@@ -19,6 +19,8 @@ The project uses a strict **Event-Driven PubSub Architecture** — all inter-mod
 - **WiFi STA Mode** — ESP32 joins an existing network, retries indefinitely
 - **Auto-Peer** — STA registers with AP on connect, AP registers STA on first packet
 - **DB Protocol Parsing** — validates packet framing and checksums on UART RX
+- **LED Activity Indicator** — built-in LED (GPIO 21) flashes on each received DB packet
+- **USB-CDC Test Mode** — `UART_USE_USB=1` for testing via USB cable without UART wiring
 - **Low Latency** — non-blocking UDP sends with `MSG_DONTWAIT`
 
 ## Project Structure

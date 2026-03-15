@@ -28,4 +28,7 @@
 #define UART_TX_PIN       43
 #define UART_RX_PIN       44
 
+// === LED ===
+#define LED_PIN           21   // Xiao ESP32-S3 built-in LED
+
 #endif
