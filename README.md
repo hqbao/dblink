@@ -1,97 +1,193 @@
 # Flight Streamer
 
-A lightweight MJPEG video streaming server for ESP32-S3, designed for FPV (First Person View) and computer vision applications.
+A wireless UART↔UDP bridge for ESP32-S3, replacing traditional RF telemetry radios (SiK/RFD900) with WiFi.
 
 ## Overview
 
-Flight Streamer captures video frames from a camera module (e.g., OV2640) and streams them over Wi-Fi using the HTTP Multipart protocol (MJPEG). This allows for low-latency video monitoring on web browsers or integration with CV pipelines (OpenCV, Python).
+Flight Streamer runs on an ESP32-S3 and bridges the flight controller's UART telemetry to UDP over WiFi. Python tools on a laptop communicate with the flight controller wirelessly — same DB protocol, just WiFi transport instead of a USB cable.
 
-The project is structured to support multiple boards, with the primary target being the ESP32-S3 (e.g., Seeed Studio XIAO ESP32S3 Sense).
+```
+Python Tools ←── UDP/WiFi ──→ ESP32-S3 ←── UART ──→ Flight Controller (STM32H7)
+```
+
+The project uses a strict **Event-Driven PubSub Architecture** — all inter-module communication goes through publish/subscribe, never direct function calls.
 
 ## Features
 
-- **MJPEG Streaming:** Low-latency video via standard HTTP at `http://<ip>:81/stream`.
-- **Wi-Fi Connectivity:** Configured as a Wi-Fi Station (Client) to connect to an existing network.
-- **Camera Support:** OV2640 (configurable for others).
-- **Telemetry Bridge:** Contains UART bridge logic (Core 1) for flight controller telemetry (e.g., MSP or Mavlink).
+- **Bidirectional UART↔UDP Bridge** — DB protocol packets forwarded transparently
+- **WiFi AP Mode** — ESP32 creates its own hotspot (no router needed)
+- **WiFi STA Mode** — ESP32 joins an existing network
+- **Zero Configuration** — any UDP client auto-registers on first packet
+- **DB Protocol Parsing** — validates packet framing and checksums on UART RX
+- **Low Latency** — non-blocking UDP sends with `MSG_DONTWAIT`
 
 ## Project Structure
 
 ```
 flight-streamer/
 ├── base/
+│   ├── foundation/             # Platform abstraction, PubSub
+│   │   ├── pubsub.h/c         #   Publish/Subscribe event system
+│   │   └── messages.h          #   Shared message structs (db_packet_t)
 │   └── boards/
-│       └── s3v1/           # ESP32-S3 Board Implementation
-│           ├── main/       # Application Source Code
-│           ├── board_config/ # Hardware Pin Definitions
-│           └── CMakeLists.txt
-├── tools/
-│   └── test_stream.py      # Python client for viewing the stream
-└── README.md
+│       └── s3v1/               # ESP32-S3 board (Xiao ESP32-S3 Sense)
+│           ├── board_config/   #   Hardware config
+│           │   └── platform.h  #   WiFi credentials, UART pins, feature flags
+│           └── main/
+│               └── main.c      #   Module initialization
+│
+├── modules/
+│   ├── wifi/                   # WiFi AP or STA mode
+│   ├── udp_server/             # UDP socket — sends/receives via PubSub
+│   └── uart_server/            # UART — DB packet parser, sends/receives via PubSub
+│
+└── tools/
+    └── test_uart_bridge.py     # GUI tool to test two-device wireless data link
 ```
 
-## Getting Started
+## Architecture
 
-### Prerequisites
+### Data Flow
 
-- **ESP-IDF v5.x**: Ensure the environment is set up and sourced.
-- **Python 3**: For the viewer script.
+#### Single Device (wireless telemetry)
 
-### Configuration
+```
+Python Tools ←── UDP/WiFi ──→ ESP32 ←── UART ──→ Flight Controller
+```
 
-Open `base/boards/s3v1/main/main.c` and configure your Wi-Fi credentials:
+#### Two Devices (peer-to-peer relay)
+
+```
+┌────────┐  UART   ┌────────────┐  WiFi/UDP   ┌────────────┐  UART   ┌────────┐
+│ Device │◄──────►│  ESP32-A   │◄───────────►│  ESP32-B   │◄──────►│ Device │
+│  (FC)  │ 38400  │   (AP)     │  port 8554  │   (STA)    │ 38400  │  (FC)  │
+└────────┘        └────────────┘             └────────────┘        └────────┘
+```
+
+STA auto-registers with AP at `192.168.4.1` on WiFi connect. AP registers
+STA on first received packet and replies. Bidirectional UDP link established
+automatically — no external bridge needed.
+
+### PubSub Topics
+
+| Topic | Publisher | Subscriber | Purpose |
+|-------|-----------|------------|---------|
+| `WIFI_CONNECTED` | wifi | udp_server | Start UDP socket after WiFi is ready |
+| `UDP_RECEIVED` | udp_server | uart_server | Forward UDP packets → UART (to FC) |
+| `UART_RECEIVED` | uart_server | udp_server | Forward UART packets → UDP (to client) |
+
+### Module Details
+
+| Module | Task | Priority | Purpose |
+|--------|------|----------|---------|
+| `udp_server` | `udp_rx` | 5 | Receive UDP, publish `UDP_RECEIVED` |
+| `uart_server` | `uart_rx` | 10 | Parse DB packets from UART, publish `UART_RECEIVED` |
+| `wifi` | — | — | WiFi init (AP or STA), publish `WIFI_CONNECTED` |
+
+### DB Protocol
+
+```
+['d']['b'][ID][SubID][len_lo][len_hi][payload...][ck_a][ck_b]
+```
+
+- **Header**: 6 bytes (`'d'` `'b'` + ID + SubID + 16-bit LE length)
+- **Checksum**: Fletcher-8 over bytes 2 through end of payload
+- UART parser validates length bounds to prevent buffer overflow
+
+## Configuration
+
+Edit `base/boards/s3v1/board_config/platform.h`:
 
 ```c
-#define WIFI_SSID         "YourSSID"
-#define WIFI_PASS         "YourPassword"
+// WiFi mode: 0 = STA (join router), 1 = AP (create hotspot)
+#define ENABLE_WIFI_AP    0
+
+// Serial I/O: 0 = UART1 on GPIO 43/44, 1 = USB-CDC (test via USB cable)
+#define UART_USE_USB      0
+
+// STA mode credentials
+#define WIFI_STA_SSID     "YourSSID"
+#define WIFI_STA_PASS     "YourPassword"
+
+// AP mode credentials
+#define WIFI_AP_SSID      "SkyDrone"
+#define WIFI_AP_PASS      "12345678"
+
+// UART to flight controller
+#define UART_TX_PIN       43
+#define UART_RX_PIN       44
 ```
 
-### Build and Flash
-
-1. **Setup Environment**
-   ```bash
-   . $HOME/esp/esp-idf/export.sh
-   ```
-
-2. **Navigate to Board Directory**
-   ```bash
-   cd base/boards/s3v1
-   ```
-
-3. **Build the project**
-   ```bash
-   idf.py build
-   ```
-
-4. **Flash to Device**
-   Connect your ESP32-S3 via USB and find the port (e.g., `/dev/cu.usbmodem...`).
-   ```bash
-   idf.py -p <port> flash
-   ```
-
-5. **Monitor Output**
-   ```bash
-   idf.py -p <port> monitor
-   ```
-   *Note down the IP address printed in the logs (e.g., `got ip:192.168.1.54`).*
-
-## Usage
-
-### Viewing the Stream
-
-Use the provided Python script to view the low-latency stream. 
+## Build & Flash
 
 ```bash
-# From the project root
-python3 tools/test_stream.py <ip_address>
+# Setup ESP-IDF environment
+source ~/skydev-research/esp/esp-idf/export.sh
+
+# Build
+cd flight-streamer/base/boards/s3v1
+idf.py build
+
+# Flash to a specific port
+idf.py -p /dev/cu.usbmodem1101 flash
+
+# Flash and monitor
+idf.py -p /dev/cu.usbmodem1101 flash monitor
+
+# List available ports
+ls /dev/cu.usbmodem*
 ```
 
-Replace `<ip_address>` with the IP obtained from the monitor output.
-- **Quit**: Press `q` or close the window.
-- **Reconnection**: The script automatically attempts to reconnect if the stream is lost.
+### Flashing Two Devices (AP + STA)
 
-## Troubleshooting
+1. Set `ENABLE_WIFI_AP=1` in `platform.h`, build, flash to Device A:
+   ```bash
+   idf.py build && idf.py -p /dev/cu.usbmodem1101 flash
+   ```
+2. Set `ENABLE_WIFI_AP=0` and `WIFI_STA_SSID="SkyDrone"` in `platform.h`, build, flash to Device B:
+   ```bash
+   idf.py build && idf.py -p /dev/cu.usbmodem31101 flash
+   ```
+3. To identify which port is which device, unplug one and run `ls /dev/cu.usbmodem*`
 
-- **Connection Failed**: Check Wi-Fi credentials in `main.c` and ensure the ESP32 is within range.
-- **No Video**: Ensure the camera ribbon cable is seated correctly.
-- **Build Errors**: Try cleaning the build with `idf.py fullclean` and rebuilding.
+## Testing
+
+### Two-Device Bridge Test
+
+Tests end-to-end data transmission between two ESP32 modules over WiFi.
+The laptop communicates with each device via USB only — the ESP32s
+handle the WiFi link between themselves automatically.
+
+1. Flash both devices with USB-CDC enabled for testing:
+   ```bash
+   cd flight-streamer/base/boards/s3v1
+   ./flash_pair.sh --usb
+   ```
+2. Connect both devices to laptop via USB
+3. Run the test tool:
+
+```bash
+python3 flight-streamer/tools/test_uart_bridge.py
+```
+
+Data flow: `Tool → USB-A → ESP32-A → WiFi → ESP32-B → USB-B → Tool`
+
+> **Note:** `--usb` sets `UART_USE_USB=1` so data goes through the USB cable.
+> For production (connecting to flight controller), re-flash without `--usb`
+> to use UART1 on GPIO 43/44.
+
+The tool provides:
+- Two UART port selectors (one per device)
+- Send A→B / B→A test packets with sequence numbers
+- Latency measurement per packet
+- Auto-send mode with configurable interval
+- Dual log panels with color-coded TX/RX messages
+
+**Dependencies**: `pip install pyserial`
+
+## Related Projects
+
+| Project | Description |
+|---------|-------------|
+| [flight-controller](../flight-controller/) | STM32H7 autopilot (consumer of this bridge) |
+| [flight-optflow](../flight-optflow/) | ESP32-S3 optical flow sensor module |

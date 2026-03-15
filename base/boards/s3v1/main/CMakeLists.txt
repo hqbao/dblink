@@ -1,3 +1,4 @@
-idf_component_register(SRCS "main.c" "server.c" "platform.c"
+idf_component_register(SRCS "main.c"
                        INCLUDE_DIRS "."
-                       PRIV_REQUIRES board_config esp_http_server esp_wifi nvs_flash driver esp_timer)
+                       REQUIRES wifi udp_server uart_server
+                              foundation board_config nvs_flash esp_timer)
