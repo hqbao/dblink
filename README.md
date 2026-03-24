@@ -20,7 +20,7 @@ The project uses a strict **Event-Driven PubSub Architecture** — all inter-mod
 - **Auto-Peer** — STA registers with AP on connect, AP registers STA on first packet
 - **DB Protocol Parsing** — validates packet framing and checksums
 - **Dual Serial** — USB-CDC + UART1 always active simultaneously
-- **LED Activity Indicator** — built-in LED (GPIO 21) flashes on each received DB packet
+- **LED Activity Indicator** — board LED flashes on each received DB packet
 - **Low Latency** — WiFi power save disabled, non-blocking UDP sends with `MSG_DONTWAIT`
 
 ## Project Structure
@@ -32,9 +32,16 @@ flight-streamer/
 │   │   ├── pubsub.h/c         #   Publish/Subscribe event system
 │   │   └── messages.h          #   Shared message structs (db_packet_t)
 │   └── boards/
-│       └── s3v1/               # ESP32-S3 board (Xiao ESP32-S3 Sense)
-│           ├── board_config/   #   Hardware config
-│           │   └── platform.h  #   WiFi credentials, UART pins, feature flags
+│       ├── s3v1/               # XIAO ESP32-S3 Sense (8MB flash, PSRAM)
+│       │   ├── board_config/   #   Hardware config + LED driver (GPIO)
+│       │   │   ├── platform.h  #   WiFi credentials, UART pins, LED pin
+│       │   │   └── platform_led.c  # Simple active-low GPIO LED
+│       │   └── main/
+│       │       └── main.c      #   Module initialization
+│       └── s3v2/               # SuperMini ESP32-S3 (4MB flash, no PSRAM)
+│           ├── board_config/   #   Hardware config + LED driver (WS2812)
+│           │   ├── platform.h  #   WiFi credentials, UART pins, LED pin
+│           │   └── platform_led.c  # WS2812 RGB LED via RMT
 │           └── main/
 │               └── main.c      #   Module initialization
 │
@@ -100,9 +107,18 @@ automatically — no external bridge needed.
 - **Checksum**: 16-bit sum (little-endian) over bytes 2 through end of payload
 - UART parser validates length bounds to prevent buffer overflow
 
+## Board Targets
+
+| Target | Board | Flash | PSRAM | LED | Notes |
+|--------|-------|-------|-------|-----|-------|
+| `s3v1` | XIAO ESP32-S3 Sense | 8MB (2MB default) | 8MB Octal | GPIO 21 (active-low) | Original target |
+| `s3v2` | SuperMini ESP32-S3 | 4MB | None | GPIO 48 (WS2812 RGB) | Compact, no camera |
+
+Both boards share UART pins (GPIO 43 TX, GPIO 44 RX) and USB-Serial/JTAG.
+
 ## Configuration
 
-Edit `base/boards/s3v1/board_config/platform.h`:
+Edit `base/boards/<target>/board_config/platform.h`:
 
 ```c
 // WiFi mode: 0 = STA (join router), 1 = AP (create hotspot)
@@ -123,8 +139,8 @@ Edit `base/boards/s3v1/board_config/platform.h`:
 
 **Notes:**
 - WiFi power saving is disabled (`WIFI_PS_NONE`) for low-latency communication
-- Console UART is disabled in `sdkconfig` (`CONFIG_ESP_CONSOLE_NONE=y`) to free GPIO 43/44 for UART1
 - All ESP log output is suppressed since USB-CDC shares the data stream
+- LED driver is board-specific: `platform_led.c` in each board's `board_config/`
 
 ## Build & Flash
 
@@ -132,8 +148,8 @@ Edit `base/boards/s3v1/board_config/platform.h`:
 # Setup ESP-IDF environment
 source ~/skydev-research/esp/esp-idf/export.sh
 
-# Build
-cd flight-streamer/base/boards/s3v1
+# Build (pick your board target)
+cd flight-streamer/base/boards/s3v2   # or s3v1
 idf.py build
 
 # Flash to a specific port
@@ -141,22 +157,21 @@ idf.py -p /dev/cu.usbmodem1101 flash
 
 # Flash and monitor
 idf.py -p /dev/cu.usbmodem1101 flash monitor
-
-# List available ports
-ls /dev/cu.usbmodem*
 ```
 
-### Flashing Two Devices (AP + STA)
+### Using flash.sh
 
-1. Set `ENABLE_WIFI_AP=1` in `platform.h`, build, flash to Device A:
-   ```bash
-   idf.py build && idf.py -p /dev/cu.usbmodem1101 flash
-   ```
-2. Set `ENABLE_WIFI_AP=0` and `WIFI_STA_SSID="SkyDrone"` in `platform.h`, build, flash to Device B:
-   ```bash
-   idf.py build && idf.py -p /dev/cu.usbmodem31101 flash
-   ```
-3. To identify which port is which device, unplug one and run `ls /dev/cu.usbmodem*`
+Each board has a `flash.sh` script that handles WiFi mode and port detection:
+
+```bash
+cd flight-streamer/base/boards/s3v2   # or s3v1
+
+./flash.sh              # STA mode (default), auto-detect port
+./flash.sh ap           # AP mode, auto-detect port
+./flash.sh sta /dev/cu.usbmodem1101   # STA, explicit port
+./flash.sh pair         # Flash two devices: first as AP, second as STA
+./flash.sh pair /dev/cu.usbmodem31101 /dev/cu.usbmodem1101
+```
 
 ## Testing
 
@@ -168,8 +183,8 @@ handle the WiFi link between themselves automatically.
 
 1. Flash both devices:
    ```bash
-   cd flight-streamer/base/boards/s3v1
-   ./flash_pair.sh
+   cd flight-streamer/base/boards/s3v2   # or s3v1
+   ./flash.sh pair
    ```
 2. Connect both devices to laptop via USB
 3. Run the test tool:

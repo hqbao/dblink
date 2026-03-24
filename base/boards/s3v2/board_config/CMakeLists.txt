@@ -1,3 +1,3 @@
 idf_component_register(SRCS "platform_led.c"
                        INCLUDE_DIRS "."
-                       REQUIRES driver)
+                       REQUIRES led_strip)

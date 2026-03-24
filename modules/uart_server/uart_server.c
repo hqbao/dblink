@@ -1,7 +1,6 @@
 #include "uart_server.h"
 #include <string.h>
 #include <driver/uart.h>
-#include <driver/gpio.h>
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -27,9 +26,9 @@ static void on_packet_to_uart(uint8_t *data, size_t size) {
     db_packet_t *pkt = (db_packet_t *)data;
     if (!pkt->data || pkt->len == 0) return;
 
-    gpio_set_level(LED_PIN, 0);
+    led_on();
     uart_write_bytes(FC_UART_PORT, (const char *)pkt->data, pkt->len);
-    gpio_set_level(LED_PIN, 1);
+    led_off();
 }
 
 // ---------------------------------------------------------------------------
@@ -74,10 +73,10 @@ static void uart_rx_task(void *arg) {
                 case 6:
                     pkt_buf[pkt_idx++] = b;
                     if (pkt_idx >= DB_HEADER_SIZE + payload_size + DB_FOOTER_SIZE) {
-                        gpio_set_level(LED_PIN, 0);
+                        led_on();
                         db_packet_t pkt = { .data = pkt_buf, .len = (size_t)pkt_idx };
                         publish(UART_RECEIVED, (uint8_t *)&pkt, sizeof(db_packet_t));
-                        gpio_set_level(LED_PIN, 1);
+                        led_off();
                         stage = 0;
                     }
                     break;
@@ -93,10 +92,7 @@ static void uart_rx_task(void *arg) {
 // Init
 // ---------------------------------------------------------------------------
 void uart_server_setup(void) {
-    // LED for packet activity (active-low: 0=on, 1=off)
-    gpio_reset_pin(LED_PIN);
-    gpio_set_direction(LED_PIN, GPIO_MODE_OUTPUT);
-    gpio_set_level(LED_PIN, 1);
+    led_init();
 
     const uart_config_t cfg = {
         .baud_rate  = FC_BAUD_RATE,

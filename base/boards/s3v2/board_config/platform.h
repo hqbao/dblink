@@ -25,7 +25,8 @@
 #define UART_RX_PIN       44
 
 // === LED ===
-#define LED_PIN           21   // Xiao ESP32-S3 built-in LED (active-low GPIO)
+// SuperMini ESP32-S3 has a WS2812 RGB LED on GPIO 48
+#define LED_PIN           48
 
 void led_init(void);
 void led_on(void);

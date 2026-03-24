@@ -1,7 +1,6 @@
 #include "usb_server.h"
 #include <string.h>
 #include <driver/usb_serial_jtag.h>
-#include <driver/gpio.h>
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -71,10 +70,10 @@ static void usb_rx_task(void *arg) {
                 case 6:
                     pkt_buf[pkt_idx++] = b;
                     if (pkt_idx >= DB_HEADER_SIZE + payload_size + DB_FOOTER_SIZE) {
-                        gpio_set_level(LED_PIN, 0);
+                        led_on();
                         db_packet_t pkt = { .data = pkt_buf, .len = (size_t)pkt_idx };
                         publish(USB_RECEIVED, (uint8_t *)&pkt, sizeof(db_packet_t));
-                        gpio_set_level(LED_PIN, 1);
+                        led_off();
                         stage = 0;
                     }
                     break;
