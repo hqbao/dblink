@@ -141,6 +141,8 @@ The LED provides visual feedback for connection state and data activity:
 
 Data flashes are 50ms pulses using `esp_timer`. The LED API (`led_not_connected`, `led_connecting`, `led_connected`, `led_send`, `led_recv`, `led_off`) is board-specific — each board's `platform_led.c` maps these states to its hardware.
 
+In AP mode, the inactive STA timeout is set to 10 seconds (`esp_wifi_set_inactive_time`) so the LED returns to RED promptly when a STA is powered off or goes out of range.
+
 ## Configuration
 
 Edit `base/boards/<target>/board_config/platform.h`:

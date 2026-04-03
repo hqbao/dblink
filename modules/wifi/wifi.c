@@ -122,6 +122,9 @@ static void wifi_init_ap(void) {
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
 
+    // Detect powered-off STAs faster (default is 300s)
+    esp_wifi_set_inactive_time(WIFI_IF_AP, 10);
+
     ESP_LOGI(TAG, "AP mode: SSID=%s, Channel=%d, IP=192.168.4.1",
              WIFI_AP_SSID, WIFI_AP_CHANNEL);
     esp_wifi_set_ps(WIFI_PS_NONE);  // Disable power save for low latency
