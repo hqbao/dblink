@@ -4,10 +4,10 @@
 #include <stdint.h>
 #include <stddef.h>
 
-// Raw DB protocol packet (pointer valid during PubSub callback only)
+// Raw byte chunk (pointer valid during PubSub callback only)
 typedef struct {
-    uint8_t *data;   // pointer to packet buffer
-    size_t len;      // packet length in bytes
-} db_packet_t;
+    uint8_t *data;
+    size_t len;
+} raw_packet_t;
 
 #endif

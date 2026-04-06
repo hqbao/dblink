@@ -4,7 +4,7 @@ A wireless UART↔UDP bridge for ESP32-S3, replacing traditional RF telemetry ra
 
 ## Overview
 
-Flight Streamer runs on an ESP32-S3 and bridges the flight controller's UART telemetry to UDP over WiFi. Python tools on a laptop communicate with the flight controller wirelessly — same DB protocol, just WiFi transport instead of a USB cable.
+Flight Streamer runs on an ESP32-S3 and bridges the flight controller's UART telemetry to UDP over WiFi. Python tools on a laptop communicate with the flight controller wirelessly — raw byte passthrough, any protocol (DB, MAVLink, etc.) just over WiFi transport instead of a USB cable.
 
 ```
 Python Tools ←── UDP/WiFi ──→ ESP32-S3 ←── UART ──→ Flight Controller (STM32H7)
@@ -14,11 +14,10 @@ The project uses a strict **Event-Driven PubSub Architecture** — all inter-mod
 
 ## Features
 
-- **Bidirectional UART↔UDP Bridge** — DB protocol packets forwarded transparently
+- **Bidirectional UART↔UDP Bridge** — raw byte passthrough, protocol-agnostic
 - **WiFi AP Mode** — ESP32 creates its own hotspot (no router needed)
 - **WiFi STA Mode** — ESP32 joins an existing network, retries indefinitely
 - **Auto-Peer** — STA registers with AP on connect, AP registers STA on first packet
-- **DB Protocol Parsing** — validates packet framing and checksums
 - **Dual Serial** — USB-CDC + UART1 always active simultaneously
 - **LED Status Indicator** — shows connection state and data activity (RGB colors on s3v2, on/off on s3v1)
 - **Low Latency** — WiFi power save disabled, non-blocking UDP sends with `MSG_DONTWAIT`
@@ -30,7 +29,7 @@ flight-streamer/
 ├── base/
 │   ├── foundation/             # Platform abstraction, PubSub
 │   │   ├── pubsub.h/c         #   Publish/Subscribe event system
-│   │   └── messages.h          #   Shared message structs (db_packet_t)
+│   │   └── messages.h          #   Shared message structs (raw_packet_t)
 │   └── boards/
 │       ├── s3v1/               # XIAO ESP32-S3 Sense (8MB flash, PSRAM)
 │       │   ├── board_config/   #   Hardware config + LED status driver (GPIO)
@@ -48,8 +47,8 @@ flight-streamer/
 ├── modules/
 │   ├── wifi/                   # WiFi AP or STA mode
 │   ├── udp_server/             # UDP socket — sends/receives via PubSub
-│   ├── uart_server/            # UART1 — DB packet parser for flight controller
-│   └── usb_server/             # USB-CDC — DB packet parser for USB host
+│   ├── uart_server/            # UART1 — raw byte passthrough for flight controller
+│   └── usb_server/             # USB-CDC — raw byte passthrough for USB host
 │
 └── tools/
     └── test_uart_bridge.py     # GUI tool to test two-device wireless data link
@@ -93,19 +92,17 @@ automatically — no external bridge needed.
 | Module | Task | Priority | Purpose |
 |--------|------|----------|---------|
 | `udp_server` | `udp_rx` | 5 | Receive UDP, publish `UDP_RECEIVED` |
-| `uart_server` | `uart_rx` | 10 | Parse DB packets from UART1, publish `UART_RECEIVED` |
-| `usb_server` | `usb_rx` | 10 | Parse DB packets from USB-CDC, publish `USB_RECEIVED` |
+| `uart_server` | `uart_rx` | 10 | Read raw bytes from UART1, publish `UART_RECEIVED` |
+| `usb_server` | `usb_rx` | 10 | Read raw bytes from USB-CDC, publish `USB_RECEIVED` |
 | `wifi` | — | — | WiFi init (AP or STA), publish `WIFI_CONNECTED` |
 
-### DB Protocol
+### Protocol
 
-```
-['d']['b'][ID][SubID][len_lo][len_hi][payload...][ck_lo][ck_hi]
-```
+The streamer is protocol-agnostic — it forwards raw bytes without parsing. Endpoints (flight controller and Python tools) handle their own framing. Common protocols on the wire:
 
-- **Header**: 6 bytes (`'d'` `'b'` + ID + SubID + 16-bit LE length)
-- **Checksum**: 16-bit sum (little-endian) over bytes 2 through end of payload
-- UART parser validates length bounds to prevent buffer overflow
+- **DB protocol**: `['d']['b'][ID][SubID][len_lo][len_hi][payload...][ck_lo][ck_hi]`
+- **MAVLink v2**: `[0xFD][len][...][CRC]`
+- **UBX (GPS)**: `[0xB5][0x62][class][id][len_lo][len_hi][payload...][ck_a][ck_b]`
 
 ## Board Targets
 

@@ -18,13 +18,13 @@ static volatile bool g_peer_registered = false;
 static TaskHandle_t g_rx_task_handle = NULL;
 
 // ---------------------------------------------------------------------------
-// UART → UDP: forward telemetry packets to peer
+// UART/USB → UDP: forward bytes to peer
 // ---------------------------------------------------------------------------
 static void on_uart_received(uint8_t *data, size_t size) {
     if (!g_peer_registered || g_sock < 0) return;
-    if (size < sizeof(db_packet_t)) return;
+    if (size < sizeof(raw_packet_t)) return;
 
-    db_packet_t *pkt = (db_packet_t *)data;
+    raw_packet_t *pkt = (raw_packet_t *)data;
     if (!pkt->data || pkt->len == 0) return;
 
     sendto(g_sock, pkt->data, pkt->len, MSG_DONTWAIT,
@@ -55,11 +55,8 @@ static void udp_rx_task(void *arg) {
         }
         g_peer_registered = true;
 
-        // Forward valid DB packets to UART
-        if (len >= 8 && buf[0] == 'd' && buf[1] == 'b') {
-            db_packet_t pkt = { .data = buf, .len = (size_t)len };
-            publish(UDP_RECEIVED, (uint8_t *)&pkt, sizeof(db_packet_t));
-        }
+        raw_packet_t pkt = { .data = buf, .len = (size_t)len };
+        publish(UDP_RECEIVED, (uint8_t *)&pkt, sizeof(raw_packet_t));
     }
 }
 
