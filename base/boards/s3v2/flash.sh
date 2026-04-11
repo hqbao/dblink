@@ -1,5 +1,5 @@
 #!/bin/bash
-# Flash ESP32-S3 SuperMini flight-streamer
+# Flash ESP32-S3 SuperMini dblink
 # Usage: ./flash.sh [ap|sta|pair] [port] [port2]
 #
 # Modes:

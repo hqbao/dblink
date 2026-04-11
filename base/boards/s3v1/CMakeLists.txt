@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-# Calculate relative path to project root (flight-streamer)
+# Calculate relative path to project root (dblink)
 get_filename_component(PROJECT_PATH "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
 
 set(EXTRA_COMPONENT_DIRS
@@ -14,4 +14,4 @@ set(EXTRA_COMPONENT_DIRS
 )
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(flight-streamer)
+project(dblink)

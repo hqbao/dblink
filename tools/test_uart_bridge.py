@@ -2,7 +2,7 @@
 """
 UART-WiFi Bridge Tester
 
-Tests data transmission between two ESP32 flight-streamer modules connected
+Tests data transmission between two ESP32 dblink modules connected
 via WiFi (one AP, one STA). Communicates with each device via USB-UART only —
 the ESP32s handle the WiFi link between themselves automatically.
 

@@ -1,10 +1,10 @@
-# Flight Streamer
+# DBLink
 
 A wireless UART↔UDP bridge for ESP32-S3, replacing traditional RF telemetry radios (SiK/RFD900) with WiFi.
 
 ## Overview
 
-Flight Streamer runs on an ESP32-S3 and bridges the flight controller's UART telemetry to UDP over WiFi. Python tools on a laptop communicate with the flight controller wirelessly — raw byte passthrough, any protocol (DB, MAVLink, etc.) just over WiFi transport instead of a USB cable.
+DBLink runs on an ESP32-S3 and bridges the flight controller's UART telemetry to UDP over WiFi. Python tools on a laptop communicate with the flight controller wirelessly — raw byte passthrough, any protocol (DB, MAVLink, etc.) just over WiFi transport instead of a USB cable.
 
 ```
 Python Tools ←── UDP/WiFi ──→ ESP32-S3 ←── UART ──→ Flight Controller (STM32H7)
@@ -25,7 +25,7 @@ The project uses a strict **Event-Driven PubSub Architecture** — all inter-mod
 ## Project Structure
 
 ```
-flight-streamer/
+dblink/
 ├── base/
 │   ├── foundation/             # Platform abstraction, PubSub
 │   │   ├── pubsub.h/c         #   Publish/Subscribe event system
@@ -173,7 +173,7 @@ Edit `base/boards/<target>/board_config/platform.h`:
 source ~/skydev-research/esp/esp-idf/export.sh
 
 # Build (pick your board target)
-cd flight-streamer/base/boards/s3v2   # or s3v1
+cd dblink/base/boards/s3v2   # or s3v1
 idf.py build
 
 # Flash to a specific port
@@ -188,7 +188,7 @@ idf.py -p /dev/cu.usbmodem1101 flash monitor
 Each board has a `flash.sh` script that handles WiFi mode and port detection:
 
 ```bash
-cd flight-streamer/base/boards/s3v2   # or s3v1
+cd dblink/base/boards/s3v2   # or s3v1
 
 ./flash.sh              # STA mode (default), auto-detect port
 ./flash.sh ap           # AP mode, auto-detect port
@@ -207,14 +207,14 @@ handle the WiFi link between themselves automatically.
 
 1. Flash both devices:
    ```bash
-   cd flight-streamer/base/boards/s3v2   # or s3v1
+    cd dblink/base/boards/s3v2   # or s3v1
    ./flash.sh pair
    ```
 2. Connect both devices to laptop via USB
 3. Run the test tool:
 
 ```bash
-python3 flight-streamer/tools/test_uart_bridge.py
+python3 dblink/tools/test_uart_bridge.py
 ```
 
 Data flow: `Tool → USB-A → ESP32-A → WiFi → ESP32-B → USB-B → Tool`

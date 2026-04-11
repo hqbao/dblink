@@ -1,5 +1,5 @@
 #!/bin/bash
-# Flash ESP32-S3 XIAO Sense flight-streamer
+# Flash ESP32-S3 XIAO Sense dblink
 # Usage: ./flash.sh [ap|sta|pair] [port] [port2]
 #
 # Modes:
