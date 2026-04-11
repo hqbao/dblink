@@ -98,7 +98,7 @@ automatically — no external bridge needed.
 
 ### Protocol
 
-The streamer is protocol-agnostic — it forwards raw bytes without parsing. Endpoints (flight controller and Python tools) handle their own framing. Common protocols on the wire:
+The bridge is protocol-agnostic — it forwards raw bytes without parsing. Endpoints (flight controller and Python tools) handle their own framing. Common protocols on the wire:
 
 - **DB protocol**: `['d']['b'][ID][SubID][len_lo][len_hi][payload...][ck_lo][ck_hi]`
 - **MAVLink v2**: `[0xFD][len][...][CRC]`
