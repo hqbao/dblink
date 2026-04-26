@@ -11,7 +11,7 @@
 #define TAG "uart_server"
 
 #define FC_UART_PORT  UART_NUM_1
-#define FC_BAUD_RATE  19200
+#define FC_BAUD_RATE  38400
 
 static TaskHandle_t g_rx_task_handle = NULL;
 

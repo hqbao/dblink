@@ -49,7 +49,21 @@ build_and_flash() {
 }
 
 # --- Source ESP-IDF ---
-source ~/skydev-research/esp/esp-idf/export.sh 2>/dev/null
+# Temporarily disable set -e: export.sh can return non-zero from harmless
+# warnings (e.g. bash autocompletion on macOS bash 3.2) which would otherwise
+# kill this script before any flashing happens.
+set +e
+trap - ERR
+source ~/skydev-research/esp/esp-idf/export.sh
+trap - ERR
+set -e
+
+echo -e "${GREEN}--- ESP-IDF ready ---${NC}"
+
+if ! command -v idf.py >/dev/null 2>&1; then
+    echo -e "${RED}Error: idf.py not found after sourcing ESP-IDF.${NC}"
+    exit 1
+fi
 
 # --- Execute mode ---
 case "$MODE" in
