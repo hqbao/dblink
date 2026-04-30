@@ -37,6 +37,17 @@ DB_ID_TEST = 0x01
 BAUD = 38400
 
 
+def screen_fit_geometry(base_width, base_height, margin_px=90):
+    try:
+        root = tk.Tk(); root.withdraw()
+        screen_h = root.winfo_screenheight()
+        root.destroy()
+    except Exception:
+        return f'{base_width}x{base_height}'
+    scale = min(1.0, max(300, screen_h - margin_px) / base_height)
+    return f'{int(base_width * scale)}x{int(base_height * scale)}'
+
+
 def build_db_packet(msg_id, sub_id, payload):
     """Build DB packet: ['d']['b'][ID][SubID][len_lo][len_hi][payload][ck_lo][ck_hi]"""
     hdr = bytes([0x64, 0x62, msg_id, sub_id]) + struct.pack('<H', len(payload))
@@ -76,7 +87,7 @@ class App:
     def __init__(self, root):
         self.root = root
         root.title('UART-WiFi Bridge Tester')
-        root.geometry('1050x680')
+        root.geometry(screen_fit_geometry(1050, 680))
         root.minsize(900, 550)
 
         self.ser = {'a': None, 'b': None}
