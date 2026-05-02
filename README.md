@@ -231,6 +231,31 @@ The tool provides:
 
 **Dependencies**: `pip install pyserial`
 
+## Performance
+
+Measured end-to-end (FC USART1 → STA → WiFi/UDP → AP → host USB-CDC) at 38400 baud
+with two SuperMini ESP32-S3 boards in adjacent USB ports on a laptop:
+
+| Sent rate | Frame size | Received | Drop | Notes |
+|-----------|------------|----------|------|-------|
+|  1 Hz | 12 B |  0.4 Hz | 62 % | HEARTBEAT |
+| 25 Hz | 24 B |  7.9 Hz | 69 % | small frame |
+| 25 Hz | 74 B |  7.7 Hz | 69 % | FLIGHT_TELEMETRY |
+
+Loss is **uniform** across rates and sizes (well below the 3840 B/s UART budget),
+all received frames have valid checksums, and a UDP-loopback test on the AP showed
+no looping — pointing to **WiFi UDP packet loss between the two SuperMini boards**
+as the dominant cause (weak antennas, USB shield interference). Mitigation options
+in priority order:
+
+1. Bring the two boards within ~10 cm and re-measure (often collapses loss to <5 %).
+2. Pin a quiet 2.4 GHz channel and call `esp_wifi_set_max_tx_power(84)` on both.
+3. Replace UDP with TCP on the inter-ESP hop (lossless, ~5–10 ms latency penalty).
+4. Drop the wireless hop entirely and use a single USB-CDC bridge ESP32.
+
+Use `flight-controller/tools/test_dblink_echo.py` to measure round-trip throughput
+or any per-class drop test (e.g. `tools/dblink_drop_test.py`) to characterise loss.
+
 ## Related Projects
 
 | Project | Description |
