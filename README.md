@@ -70,7 +70,7 @@ Python Tools ←── USB-CDC ──→ ESP32 ←── UART ──→ Flight C
 ```
 ┌────────┐  UART   ┌────────────┐  WiFi/UDP   ┌────────────┐  UART   ┌────────┐
 │ Device │◄──────►│  ESP32-A   │◄───────────►│  ESP32-B   │◄──────►│ Device │
-│  (FC)  │  38400 │   (AP)     │  port 8554  │   (STA)    │  38400 │  (FC)  │
+│  (FC)  │  115200 │   (AP)     │  port 8554  │   (STA)    │  115200 │  (FC)  │
 └────────┘        └────────────┘             └────────────┘        └────────┘
 ```
 
@@ -233,7 +233,7 @@ The tool provides:
 
 ## Performance
 
-Measured end-to-end (FC USART1 → STA → WiFi/UDP → AP → host USB-CDC) at 38400 baud
+Measured end-to-end (FC USART1 → STA → WiFi/UDP → AP → host USB-CDC) at 115200 baud
 with two SuperMini ESP32-S3 boards in adjacent USB ports on a laptop:
 
 | Sent rate | Frame size | Received | Drop | Notes |

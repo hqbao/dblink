@@ -5,7 +5,7 @@
 #include <inttypes.h>
 
 // === WiFi Configuration ===
-#define ENABLE_WIFI_AP    0
+#define ENABLE_WIFI_AP    1
 
 #define WIFI_STA_SSID     "SkyDrone"
 #define WIFI_STA_PASS     "12345678"
@@ -23,6 +23,9 @@
 // === Serial Interface ===
 #define UART_TX_PIN       43
 #define UART_RX_PIN       44
+#ifndef FC_BAUD_RATE
+#define FC_BAUD_RATE      115200
+#endif
 
 // === LED ===
 // SuperMini ESP32-S3 has a WS2812 RGB LED on GPIO 48

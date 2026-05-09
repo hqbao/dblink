@@ -1,17 +1,21 @@
 #!/bin/bash
 # Flash ESP32-S3 SuperMini dblink
-# Usage: ./flash.sh [ap|sta|pair] [port] [port2]
+# Usage: ./flash.sh [ap|sta|pair] [port] [port2] [--baud N]
 #
 # Modes:
 #   sta   — Flash as station (default). Connects to SkyDrone AP.
 #   ap    — Flash as access point. Creates SkyDrone network.
 #   pair  — Flash two devices: first as AP, second as STA.
 #
+# Options:
+#   --baud N   UART baud rate to FC (default: 115200)
+#
 # Examples:
-#   ./flash.sh                           # STA mode, auto-detect port
+#   ./flash.sh                           # STA mode, auto-detect port, 115200 baud
 #   ./flash.sh ap                        # AP mode, auto-detect port
 #   ./flash.sh sta /dev/cu.usbmodem1101  # STA mode, explicit port
 #   ./flash.sh pair                      # Flash pair, auto-detect 2 ports
+#   ./flash.sh sta --baud 230400         # Bump to 230400 baud
 #   ./flash.sh pair /dev/cu.usbmodem31101 /dev/cu.usbmodem1101
 
 set -e
@@ -24,6 +28,17 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
+
+# Extract --baud N from argv (default 115200)
+BAUD="115200"
+ARGS=()
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --baud) BAUD="$2"; shift 2 ;;
+        *) ARGS+=("$1"); shift ;;
+    esac
+done
+set -- "${ARGS[@]}"
 
 MODE="${1:-sta}"
 
@@ -44,7 +59,7 @@ set_wifi_mode() {
 build_and_flash() {
     local port=$1
     cd "$BOARD_DIR"
-    idf.py build
+    idf.py -DFC_BAUD_RATE="$BAUD" build
     idf.py -p "$port" flash
 }
 

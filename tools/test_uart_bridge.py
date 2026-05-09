@@ -34,7 +34,7 @@ from datetime import datetime
 DB_HEADER = 6   # 'd' 'b' [id] [sub] [len_lo] [len_hi]
 DB_FOOTER = 2   # [ck_lo] [ck_hi]  (16-bit sum, little-endian)
 DB_ID_TEST = 0x01
-BAUD = 38400
+BAUD = 115200
 
 
 def screen_fit_geometry(base_width, base_height, margin_px=90):
