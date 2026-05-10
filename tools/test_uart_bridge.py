@@ -22,6 +22,50 @@ import tkinter as tk
 from tkinter import ttk, scrolledtext
 import serial
 import serial.tools.list_ports
+
+
+def _open_serial_autobaud(port, timeout=1.0, magic=b'db',
+                          bauds=(115200, 38400, 9600, 230400, 460800, 921600),
+                          probe_time=0.5):
+    """Open `port`, auto-detecting baud rate by listening for `magic` bytes.
+
+    Tries each baud in `bauds` (115200 first), reading for up to `probe_time`
+    seconds. Returns an opened serial.Serial at the first baud where `magic`
+    appears in the input stream. Falls back to bauds[0] if nothing detected.
+    """
+    import time as _t
+    for _baud in bauds:
+        try:
+            _s = serial.Serial(port, _baud, timeout=0.05)
+        except Exception:
+            continue
+        try:
+            _s.reset_input_buffer()
+        except Exception:
+            pass
+        _deadline = _t.time() + probe_time
+        _buf = bytearray()
+        _hit = False
+        while _t.time() < _deadline:
+            _c = _s.read(256)
+            if _c:
+                _buf.extend(_c)
+                if magic in _buf:
+                    _hit = True
+                    break
+                if len(_buf) > 4096:
+                    del _buf[:-1024]
+        if _hit:
+            _s.timeout = timeout
+            try:
+                _s.reset_input_buffer()
+            except Exception:
+                pass
+            print(f"[autobaud] {port}: detected framing at {_baud} baud")
+            return _s
+        _s.close()
+    print(f"[autobaud] {port}: no framing detected, opening at {bauds[0]} baud")
+    return serial.Serial(port, bauds[0], timeout=timeout)
 import struct
 import threading
 import time
@@ -232,7 +276,7 @@ class App:
             return
 
         try:
-            self.ser[dev] = serial.Serial(port, BAUD, timeout=0.1)
+            self.ser[dev] = _open_serial_autobaud(port, timeout=0.1)
             self.btn_conn[dev].config(text='Disconnect')
             self.lbl_status[dev].config(text='● Connected', foreground='#388E3C')
             self.combo_port[dev].config(state='disabled')
