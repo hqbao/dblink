@@ -253,7 +253,7 @@ in priority order:
 3. Replace UDP with TCP on the inter-ESP hop (lossless, ~5–10 ms latency penalty).
 4. Drop the wireless hop entirely and use a single USB-CDC bridge ESP32.
 
-Use `flight-controller/tools/test_dblink_echo.py` to measure round-trip throughput
+Use `flight-controller/tools/dblink_test.py` (echo benchmark section, or `--no-window` CI mode) to measure round-trip throughput
 or any per-class drop test (e.g. `tools/dblink_drop_test.py`) to characterise loss.
 
 ## Related Projects
