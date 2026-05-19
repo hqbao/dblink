@@ -22,7 +22,6 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BOARD_DIR="$SCRIPT_DIR"
-PLATFORM_H="$BOARD_DIR/board_config/platform.h"
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -51,15 +50,11 @@ detect_ports() {
     esac
 }
 
-set_wifi_mode() {
-    local mode=$1  # 0=STA, 1=AP
-    sed -i '' "s/#define ENABLE_WIFI_AP.*/#define ENABLE_WIFI_AP    $mode/" "$PLATFORM_H"
-}
-
 build_and_flash() {
     local port=$1
+    local wifi_ap=$2  # 0=STA, 1=AP
     cd "$BOARD_DIR"
-    idf.py -DFC_BAUD_RATE="$BAUD" build
+    idf.py -DFC_BAUD_RATE="$BAUD" -DENABLE_WIFI_AP="$wifi_ap" build
     idf.py -p "$port" flash
 }
 
@@ -93,8 +88,7 @@ case "$MODE" in
             PORT="${PORTS[0]}"
         fi
         echo -e "${GREEN}=== Flash STA → ${YELLOW}$PORT${NC} ${GREEN}===${NC}"
-        set_wifi_mode 0
-        build_and_flash "$PORT"
+        build_and_flash "$PORT" 0
         echo -e "${GREEN}✓ STA flashed. Connects to SkyDrone AP.${NC}"
         ;;
 
@@ -109,8 +103,7 @@ case "$MODE" in
             PORT="${PORTS[0]}"
         fi
         echo -e "${GREEN}=== Flash AP → ${YELLOW}$PORT${NC} ${GREEN}===${NC}"
-        set_wifi_mode 1
-        build_and_flash "$PORT"
+        build_and_flash "$PORT" 1
         echo -e "${GREEN}✓ AP flashed. SSID: SkyDrone, IP: 192.168.4.1${NC}"
         ;;
 
@@ -134,14 +127,12 @@ case "$MODE" in
         echo ""
 
         echo -e "${GREEN}[1/2] AP → $PORT_AP${NC}"
-        set_wifi_mode 1
-        build_and_flash "$PORT_AP"
+        build_and_flash "$PORT_AP" 1
         echo -e "${GREEN}  ✓ AP flashed${NC}"
         echo ""
 
         echo -e "${GREEN}[2/2] STA → $PORT_STA${NC}"
-        set_wifi_mode 0
-        build_and_flash "$PORT_STA"
+        build_and_flash "$PORT_STA" 0
         echo -e "${GREEN}  ✓ STA flashed${NC}"
         echo ""
 

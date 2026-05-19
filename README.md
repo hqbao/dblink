@@ -51,7 +51,8 @@ dblink/
 │   └── usb_server/             # USB-CDC — raw byte passthrough for USB host
 │
 └── tools/
-    └── test_uart_bridge.py     # GUI tool to test two-device wireless data link
+    ├── test_uart_bridge.py     # GUI: round-trip data test with auto-send
+    └── bandwidth_lab.py        # GUI: throughput / latency / loss dashboard
 ```
 
 ## Architecture
@@ -223,13 +224,17 @@ Both USB-CDC and UART1 are always active — USB for host tools,
 UART1 for flight controller connection. No mode switching needed.
 
 The tool provides:
-- Two UART port selectors (one per device)
+- Port dropdown per device (filters out `debug-console`, Bluetooth, etc.)
+- Auto-connect on launch when exactly two USB ports are detected
 - Send A→B / B→A test packets with sequence numbers
 - Latency measurement per packet
 - Auto-send mode with configurable interval
 - Dual log panels with color-coded TX/RX messages
 
-**Dependencies**: `pip install pyserial`
+For throughput / loss characterisation use `bandwidth_lab.py` instead
+(burst, paced, latency, and rate-sweep modes with live plots).
+
+**Dependencies**: `pip install pyserial matplotlib`
 
 ## Performance
 

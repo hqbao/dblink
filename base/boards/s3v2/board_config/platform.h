@@ -5,7 +5,11 @@
 #include <inttypes.h>
 
 // === WiFi Configuration ===
-#define ENABLE_WIFI_AP    1
+// ENABLE_WIFI_AP defaults to 0 (STA mode). Override at build time with:
+//   idf.py -DENABLE_WIFI_AP=1 build
+#ifndef ENABLE_WIFI_AP
+#define ENABLE_WIFI_AP    0
+#endif
 
 #define WIFI_STA_SSID     "SkyDrone"
 #define WIFI_STA_PASS     "12345678"
